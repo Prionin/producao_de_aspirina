@@ -1,6 +1,8 @@
 use chrono::Local;
+use serde::Deserialize;
 use serde::Serialize;
 use std::io::Write;
+use std::path::Path;
 #[derive(Serialize)]
 struct Etapa2 {
     data: String,
@@ -11,7 +13,18 @@ struct Etapa2 {
     solucao_mae: f64,
     etanol_recuperado: f64,
 }
-
+#[derive(Serialize, Deserialize)]
+struct Config {
+    caminho: String,
+}
+fn entrada_string(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    print!("{}", prompt);
+    std::io::stdout().flush()?;
+    let mut buffer = String::new();
+    std::io::stdin().read_line(&mut buffer)?;
+    let buffer = buffer.trim().to_string();
+    Ok(buffer)
+}
 fn entrada_f64(prompt: &str) -> Result<f64, Box<dyn std::error::Error>> {
     loop {
         print!("{}", prompt);
@@ -47,6 +60,25 @@ fn campo_string(label: &str, valor: &str) {
     println!(" ");
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let caminho_salvamento: String;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let config_dir = format!("{}/.config/produção_de_aspirina", home);
+    std::fs::create_dir_all(&config_dir)?;
+    let config_path = format!("{}/.config/produção_de_aspirina/config.json", home);
+    if Path::new(&config_path).exists() {
+        let conteudo = std::fs::read_to_string(&config_path)?;
+        let config: Config = serde_json::from_str(&conteudo)?;
+        caminho_salvamento = config.caminho;
+    } else {
+        let entrada_caminho = entrada_string("Adicione o caminho onde o arquivo deve ser salvo: ")?;
+        std::fs::create_dir_all(&entrada_caminho)?;
+        let config = Config {
+            caminho: entrada_caminho,
+        };
+        let json = serde_json::to_string_pretty(&config)?;
+        std::fs::write(&config_path, json)?;
+        caminho_salvamento = config.caminho;
+    }
     let data = Local::now().format("%Y-%m-%d").to_string();
     secao("Materias primas recebidas.");
     let materia_prima1 = entrada_f64("Adicione a quantidade de Aspirina bruta recebida em Kg: ")?;
@@ -69,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     secao("Sobras da reação.");
     campo("Solução mãe:", sobra1);
     campo("Etanol recuperado:", sobra2);
-    let nome_do_arquivo = format!("etapa2_{}.json", &data);
+    let nome_do_arquivo = format!("{}/etapa2_{}.json", caminho_salvamento, &data);
     let etapa2 = Etapa2 {
         data,
         aspirina_bruta: materia_prima1,

@@ -1,6 +1,8 @@
 use chrono::NaiveDate;
 use serde::Deserialize;
+use serde::Serialize;
 use std::io::Write;
+use std::path::Path;
 #[derive(Deserialize)]
 struct Etapa2 {
     data: String,
@@ -21,7 +23,11 @@ struct Etapa1 {
     sobra_acido_acetico: f64,
     sobra_anidrido_acetico: f64,
 }
-fn entrada_string(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+#[derive(Serialize, Deserialize)]
+struct Config {
+    caminho: String,
+}
+fn entrada_data(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     loop {
         print!("{}", prompt);
         std::io::stdout().flush()?;
@@ -36,6 +42,14 @@ fn entrada_string(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
             Err(_) => println!("Data inválida. Use o formato YYYY-MM-DD. Ex: 2026-04-11"),
         }
     }
+}
+fn entrada_string(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    print!("{}", prompt);
+    std::io::stdout().flush()?;
+    let mut buffer = String::new();
+    std::io::stdin().read_line(&mut buffer)?;
+    let buffer = buffer.trim().to_string();
+    Ok(buffer)
 }
 fn secao(titulo: &str) {
     println!(" ");
@@ -53,12 +67,31 @@ fn campo_string(label: &str, valor: String) {
     println!(" ");
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let caminho_salvamento: String;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let config_dir = format!("{}/.config/produção_de_aspirina", home);
+    std::fs::create_dir_all(&config_dir)?;
+    let config_path = format!("{}/.config/produção_de_aspirina/config.json", home);
+    if Path::new(&config_path).exists() {
+        let conteudo = std::fs::read_to_string(&config_path)?;
+        let config: Config = serde_json::from_str(&conteudo)?;
+        caminho_salvamento = config.caminho;
+    } else {
+        let entrada_caminho =
+            entrada_string("Adicione o caminho onde estão os arquivos a serem lidos: ")?;
+        std::fs::create_dir_all(&entrada_caminho)?;
+        let config = Config {
+            caminho: entrada_caminho,
+        };
+        let json = serde_json::to_string_pretty(&config)?;
+        std::fs::write(&config_path, json)?;
+        caminho_salvamento = config.caminho;
+    }
     loop {
-        let entrada = entrada_string(
-            "Adicione a data dos arquivos que quer analisar em formato YYYY-MM-DD: ",
-        )?;
-        let arquivo1 = format!("etapa1_{}.json", entrada);
-        let arquivo2 = format!("etapa2_{}.json", entrada);
+        let entrada =
+            entrada_data("Adicione a data dos arquivos que quer analisar em formato YYYY-MM-DD: ")?;
+        let arquivo1 = format!("{}/etapa1_{}.json", caminho_salvamento, entrada);
+        let arquivo2 = format!("{}/etapa2_{}.json", caminho_salvamento, entrada);
         if !std::path::Path::new(&arquivo1).exists() {
             println!("Arquivo de etapa 1 não encontrado para essa data");
             continue;
@@ -90,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Kg",
         );
         campo(
-            "A segunda etapa produziu de aspirina bruta:",
+            "A segunda etapa consumiu de aspirina bruta:",
             etapa2.aspirina_bruta,
             "Kg",
         );
