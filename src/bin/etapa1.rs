@@ -39,7 +39,6 @@ fn entrada_f64(prompt: &str) -> Result<f64, Box<dyn std::error::Error>> {
             Ok(_) => println!("Valor deve ser maior que zero. Tente Novamente. "),
             Err(_) => {
                 println!("Entrada inválida. Tente novamente:");
-                continue;
             }
         }
     }
@@ -62,31 +61,24 @@ fn campo_string(label: &str, valor: &str) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let caminho_salvamento: String;
     let home = std::env::var("HOME").unwrap_or_default();
-    let config_dir = format!("{}/.config/produção_de_aspirina", home);
-    std::fs::create_dir_all(&config_dir)?;
+    std::fs::create_dir_all(format!("{}/.config/produção_de_aspirina", home))?;
     let config_path = format!("{}/.config/produção_de_aspirina/config.json", home);
-    if Path::new(&config_path).exists() {
+    let caminho_salvamento = if Path::new(&config_path).exists() {
         let conteudo = std::fs::read_to_string(&config_path)?;
         let config: Config = serde_json::from_str(&conteudo)?;
-        caminho_salvamento = config.caminho;
+        config.caminho
     } else {
         let entrada_caminho = entrada_string("Adicione o caminho onde o arquivo deve ser salvo: ")?;
-        if Path::new(&entrada_caminho).exists() {
-            println!("O caminho informado existe.")
-        } else {
+        if !Path::new(&entrada_caminho).exists() {
             let resposta = entrada_string(
                 "O caminho informado não foi encontrado. Deseja cria-lo? digite y para sim e n para não: ",
             )?.to_lowercase();
             if resposta == "y" {
                 std::fs::create_dir_all(&entrada_caminho)?;
-            } else if resposta == "n" {
+            } else {
                 println!("Operação cancelada. Caminho inválido.");
                 return Err("Usuário cancelou a operação.".into());
-            } else {
-                println!("Entrada inválida. Use apenas 'y' ou 'n'.");
-                return Err("Entrada inválida.".into());
             }
         }
 
@@ -95,8 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let json = serde_json::to_string_pretty(&config)?;
         std::fs::write(&config_path, json)?;
-        caminho_salvamento = config.caminho;
-    }
+        config.caminho
+    };
     let data = Local::now().format("%Y-%m-%d").to_string();
     secao("Materias primas recebidas.");
     let materia_prima1 = entrada_f64("Adicione a quantidade de Ácido salicílico recebida em Kg: ")?;
