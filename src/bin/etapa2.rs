@@ -71,7 +71,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         caminho_salvamento = config.caminho;
     } else {
         let entrada_caminho = entrada_string("Adicione o caminho onde o arquivo deve ser salvo: ")?;
-        std::fs::create_dir_all(&entrada_caminho)?;
+        if Path::new(&entrada_caminho).exists() {
+            println!("O caminho informado existe.")
+        } else {
+            let resposta = entrada_string(
+                "O caminho informado não foi encontrado. Deseja cria-lo? digite y para sim e n para não: ",
+            )?.to_lowercase();
+            if resposta == "y" {
+                std::fs::create_dir_all(&entrada_caminho)?;
+            } else if resposta == "n" {
+                println!("Operação cancelada. Caminho inválido.");
+                return Err("Usuário cancelou a operação.".into());
+            } else {
+                println!("Entrada inválida. Use apenas 'y' ou 'n'.");
+                return Err("Entrada inválida.".into());
+            }
+        }
+
         let config = Config {
             caminho: entrada_caminho,
         };
